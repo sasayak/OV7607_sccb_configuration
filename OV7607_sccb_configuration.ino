@@ -9,6 +9,27 @@ const byte CLOCKOUT = 9;
 
 /* Functions */
 
+/* Auxilaury sccb function */
+void test_register_list(const struct regval_list reglist[]){
+  uint8_t reg_addr, reg_val_target, reg_val_actual;
+  const struct regval_list *next = reglist;
+  while ((reg_addr != 0xff) | (reg_val_target != 0xff)){
+    reg_addr = pgm_read_byte(&next->reg_num);
+    reg_val_target = pgm_read_byte(&next->value);
+    reg_val_actual = read_register(reg_addr);
+    if(reg_val_actual != reg_val_target){
+      Serial.print(F("Register is: "));
+      print_reg_and_dat(reg_addr, reg_val_actual);
+      Serial.print(F("Register should be: "));
+      print_reg_and_dat(reg_addr, reg_val_target);
+    } else {
+      Serial.print(F("Good: "));
+      print_reg_and_dat(reg_addr, reg_val_actual);
+    }
+    next++;
+  }
+}
+
 /* UI functions */
 
 char getCommand()
@@ -22,36 +43,85 @@ char getCommand()
 }
 
 void print_reg_and_dat(uint8_t reg, uint8_t dat){
-  Serial.print("\tReg: 0x");
+  Serial.print(F("\tReg: 0x"));
   Serial.print(reg, HEX);
-  Serial.print(" <= HEX:");
+  Serial.print(F(" <= HEX:"));
   Serial.print(dat, HEX);
-  Serial.print(" = BIN:");
+  Serial.print(F(" = BIN:"));
   Serial.println(dat, BIN);
 }
 
 void print_help(bool reduced=true){
   if (reduced){
-    Serial.println("h: show the help screen");
+    Serial.println(F("h: show the help screen"));
   } else {
-    Serial.println("--- Help screen");
-    Serial.println("\th: show the help screen");
-    Serial.println("\ta: read all registers");
-    Serial.println("\tr: read one specific register");
-    Serial.println("\tw: write one specific register");
-    Serial.println("\tF: write the configuration for the FFFilters project (VGA, YUV422, PCKLDivider=0)");
-    Serial.println("\tU: write the configuration from the arduino uno example (qvga and yuv422)");
-    Serial.println("\tL: set registers according to standard values of the Linux driver (still needs a resolution and color space)");
-    Serial.println("\t1: set resolution to VGA");
-    Serial.println("\t2: set resolution to QVGA");
-    Serial.println("\t3: set resolution to QQVGA");
-    Serial.println("\t6: set color space to YUV422");
-    Serial.println("\t7: set color space to RGB565");
-    Serial.println("\t8: set color space to BAYER_RGB");
-    Serial.println("\tp: toggle 'PCKL running while HREF is LOW'");
-    Serial.println("\td: set PCKLDivider (register 0x11). The output clock (PCKL) will be: PCKL = XCKL / PCKLDivider");
-    Serial.println("\tx: reset/clear all registers");
+    Serial.println(F("--- Help screen"));
+    Serial.println(F("\th: show the help screen"));
+    Serial.println(F("\ta: read all registers"));
+    Serial.println(F("\tr: read one specific register"));
+    Serial.println(F("\tw: write one specific register"));
+    Serial.println(F("\tF: write the configuration for the FFFilters project (VGA, YUV422, PCKLDivider=0)"));
+    Serial.println(F("\tU: write the configuration from the arduino uno example (qvga and yuv422)"));
+    Serial.println(F("\tL: set registers according to standard values of the Linux driver (still needs a resolution and color space)"));
+    Serial.println(F("\t1: set resolution to VGA"));
+    Serial.println(F("\t2: set resolution to QVGA"));
+    Serial.println(F("\t3: set resolution to QQVGA"));
+    Serial.println(F("\t6: set color space to YUV422"));
+    Serial.println(F("\t7: set color space to RGB565"));
+    Serial.println(F("\t8: set color space to BAYER_RGB"));
+    Serial.println(F("\tp: toggle 'PCKL running while HREF is LOW'"));
+    Serial.println(F("\td: set PCKLDivider (register 0x11). The output clock (PCKL) will be: PCKL = XCKL / (PCKLDivider+1)"));
+    Serial.println(F("\tx: reset/clear all registers"));
   }
+}
+
+void test_config(){
+  // clear the q
+  while (Serial.available())
+  {
+    Serial.read();
+  }
+  Serial.println("Please write the configuration you would like to test [L,1,2,3,6,7,8]");
+  // wait for the user to type something, then read it
+  char c = '\0';
+  while(Serial.available() < 1){
+    delay(1);
+  }
+  c = Serial.read();
+  // sellect the propper case
+  switch(c){
+    case 'L':
+      test_register_list(ov7670_default_regs);
+      Serial.println(F("--- Test of linux standard configuration complete"));
+      break;
+    case '1':
+      test_register_list(vga_ov7670);
+      Serial.println(F("--- Test of VGA resolution complete"));
+      break;
+    case '2':
+      test_register_list(qvga_ov7670);
+      Serial.println(F("--- Test of QVGA resolution complete"));
+      break;
+    case '3':
+      test_register_list(qqvga_ov7670);
+      Serial.println(F("--- Test of QQVGA resolution complete"));
+      break;
+    case '6':
+      test_register_list(yuv422_ov7670);
+      Serial.println(F("--- Test of YUV422 color space complete"));
+      break;
+    case '7':
+      test_register_list(rgb565_ov7670);
+      Serial.println(F("--- Test of RGB565 color space complete"));
+      break;
+    case '8':
+      test_register_list(bayerRGB_ov7670);
+      Serial.println(F("--- Test of BAYER_RGB color space complete"));
+      break;
+    default:
+      Serial.println(F("--- No fitting configuration was found"));
+  }
+  
 }
 
 byte get_hex_from_serial(){
@@ -73,11 +143,11 @@ byte get_hex_from_serial(){
 bool check_if_reg_is_valid(byte reg_to_read){
   if(reg_to_read > 0xC9){
     Serial.print(reg_to_read, HEX);
-    Serial.println(" is too large, maximum register is C9.");
+    Serial.println(F(" is too large, maximum register is C9."));
     return false;
   }
   if(!check_read_allowance(reg_to_read)){
-    Serial.print("\tNo read access to 0x");
+    Serial.print(F("\tNo read access to 0x"));
     Serial.println(reg_to_read, HEX);
     return false;
   }
@@ -119,7 +189,7 @@ void setup() {
   // wait a bit for the camera to catch up to the clock
   delay(400);
 
-  Serial.println("--- Checking Manufacturer ID of device...");
+  Serial.println(F("--- Checking Manufacturer ID of device..."));
   uint8_t MIDH = 0x1C;
   uint8_t MIDH_expected = 0x7F;
   uint8_t MIDL = 0x1D;
@@ -131,9 +201,9 @@ void setup() {
   print_reg_and_dat(MIDH, read_register(MIDH));
   print_reg_and_dat(MIDL, read_register(MIDL));
   if((MIDH_expected != read_register(MIDH)) or (MIDL_expected != read_register(MIDL))){
-    Serial.println("--- WARNING: Manufacturer ID missmatch! The device may not work as expected!");
+    Serial.println(F("--- WARNING: Manufacturer ID missmatch! The device may not work as expected!"));
   } else {
-    Serial.println("--- ID's match! Continuing...");
+    Serial.println(F("--- ID's match! Continuing..."));
   }
   
   print_help(false);  
@@ -147,7 +217,7 @@ void loop() {
   switch(getCommand()){
     case 'a':
       {
-        Serial.println("--- Printing the contents of all registers...");
+        Serial.println(F("--- Printing the contents of all registers..."));
         for(byte reg_to_read = 0x00; reg_to_read <= 0xC9; reg_to_read++){
           if(check_if_reg_is_valid(reg_to_read)){
             print_reg_and_dat(reg_to_read, read_register(reg_to_read));
@@ -158,10 +228,10 @@ void loop() {
       break;
     case 'r':
       {
-        Serial.println("--- Reading one register...");
+        Serial.println(F("--- Reading one register..."));
         // empty the line before we do anything else
         while(Serial.available()) {Serial.read();}
-        Serial.println("Please type the HEX number of the register in question (from 00 to C9):");
+        Serial.println(F("Please type the HEX number of the register in question (from 00 to C9):"));
         byte reg_to_read = get_hex_from_serial();
         if(check_if_reg_is_valid(reg_to_read)){
           print_reg_and_dat(reg_to_read, read_register(reg_to_read));
@@ -170,47 +240,47 @@ void loop() {
       break;
     case 'x':
       reset_registers();
-      Serial.println("--- Resetting/Clearing all registers complete");
+      Serial.println(F("--- Resetting/Clearing all registers complete"));
       break;
     case 'w':
       {
-        Serial.println("--- Writing one register...");
+        Serial.println(F("--- Writing one register..."));
         // empty the line before we do anything else
         while(Serial.available()) {Serial.read();}
-        Serial.println("Please type the HEX number of the register in question (from 00 to C9):");
+        Serial.println(F("Please type the HEX number of the register in question (from 00 to C9):"));
         byte reg_to_write = get_hex_from_serial();
         if(check_if_reg_is_valid(reg_to_write)){
           // First display the rigisters current content
-          Serial.print("Current state of the register: ");
+          Serial.print(F("Current state of the register: "));
           print_reg_and_dat(reg_to_write, read_register(reg_to_write));
           // empty the line before we do anything else
           while(Serial.available()) {Serial.read();}
-          Serial.println("Please type the HEX value that should be written:");
+          Serial.println(F("Please type the HEX value that should be written:"));
           byte val_to_write = get_hex_from_serial();
-          Serial.print("Writing 0x");
+          Serial.print(F("Writing 0x"));
           Serial.print(val_to_write, HEX);
-          Serial.print(" to register number 0x");
+          Serial.print(F(" to register number 0x"));
           Serial.println(reg_to_write, HEX);
           // write the new content
           write_register(reg_to_write, val_to_write);
           // check if the write was successfull
-          Serial.print("Current state of the register: ");
+          Serial.print(F("Current state of the register: "));
           delay(300);
           byte reg_val_after_write = read_register(reg_to_write);
           print_reg_and_dat(reg_to_write, reg_val_after_write);
           if (reg_val_after_write != val_to_write){
-            Serial.println("--- WARNING: Values written and read do not match.");
+            Serial.println(F("--- WARNING: Values written and read do not match."));
           }
         } else{
-          Serial.println("--- Aborting write!");
+          Serial.println(F("--- Aborting write!"));
         }
       }
       break;
     case 'U':
       {
-        Serial.println("--- Configuring the camera to arduino uno example (qvga and yuv422)");
+        Serial.println(F("--- Configuring the camera to arduino uno example (qvga and yuv422)"));
         init_l_driver();
-        Serial.println("--- Finished configuration");
+        Serial.println(F("--- Finished configuration"));
       }
       break;
     case 'h':
@@ -219,56 +289,59 @@ void loop() {
     case 'p':
       PCKLon = !PCKLon;
       setPCKLonHREF(PCKLon);
-      Serial.print("--- Set 'PCKL running while HREF is LOW' to: ");
+      Serial.print(F("--- Set 'PCKL running while HREF is LOW' to: "));
       Serial.println(PCKLon);
       break;
     case 'd':
       {
-      Serial.println("--- Setting PCKLDivider...");
-      Serial.println("Please type value for PCKLDivider in HEX (from 00 to 1F):");
+      Serial.println(F("--- Setting PCKLDivider..."));
+      Serial.println(F("Please type value for PCKLDivider in HEX (from 00 to 1F):"));
       byte val_to_write = get_hex_from_serial();
       val_to_write = setPCKLDivider(val_to_write);
-      Serial.print("--- Set PCKLDivider to: ");
+      Serial.print(F("--- Set PCKLDivider to: "));
       Serial.println(val_to_write, HEX);
       }
       break;
     case 'L':
       camInit();
-      Serial.println("--- Setup of linux standard configuration complete");
+      Serial.println(F("--- Setup of linux standard configuration complete"));
       break;
     case '1':
       setRes(VGA);
-      Serial.println("--- Setup of VGA resolution complete");
+      Serial.println(F("--- Setup of VGA resolution complete"));
       break;
     case '2':
       setRes(QVGA);
-      Serial.println("--- Setup of QVGA resolution complete");
+      Serial.println(F("--- Setup of QVGA resolution complete"));
       break;
     case '3':
       setRes(QQVGA);
-      Serial.println("--- Setup of QQVGA resolution complete");
+      Serial.println(F("--- Setup of QQVGA resolution complete"));
       break;
     case '6':
       setColorSpace(YUV422);
-      Serial.println("--- Setup of YUV422 color space complete");
+      Serial.println(F("--- Setup of YUV422 color space complete"));
       break;
     case '7':
       setColorSpace(RGB565);
-      Serial.println("--- Setup of RGB565 color space complete");
+      Serial.println(F("--- Setup of RGB565 color space complete"));
       break;
     case '8':
       setColorSpace(BAYER_RGB);
-      Serial.println("--- Setup of BAYER_RGB color space complete");
+      Serial.println(F("--- Setup of BAYER_RGB color space complete"));
       break;
     case 'F':
-      Serial.println("--- Configuring the camera for the FFFilters project");
+      Serial.println(F("--- Configuring the camera for the FFFilters project"));
       camInit();
       setRes(VGA);
       setColorSpace(YUV422);
       setPCKLonHREF(true);
       setPCKLDivider(0);
-      Serial.println("--- Finished configuration");
-    
+      Serial.println(F("--- Finished configuration"));
+      break;
+    case 'T':
+      test_config();
+      break;    
   }
   delay(10);
   
