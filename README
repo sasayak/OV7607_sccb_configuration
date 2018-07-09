@@ -1,0 +1,28 @@
+Functionality:
+  Reading all registers
+  Reading specific registers
+  Writing specific registers
+  Resetting the camera via software.
+  Writing known configurations:
+    1: Linux driver example from here: http://acoptex.com/uploads/modifiedOV7670code.ino
+    2: VGA, QVGA, QQVGA, YUV, BayerRGB, RGB565 from here: https://github.com/ComputerNerd/ov7670-no-ram-arduino-uno
+
+Required Pin connections:
+  2 -> SIO_D
+  3 -> SIO_C
+  9 -> XCLK (if not supplied from elsewhere)
+
+Tested with:
+  Arduino Yun
+
+Likely working with:
+  Arduino Leonardo
+  Arduino Uno
+
+ As far as sensible the code is in compliance with the data sheet: http://web.mit.edu/6.111/www/f2015/tools/OV7670_2006.pdf
+ For writing registers please consult the data sheet. Otherwise you may be writing reserved registers.
+ Both low and high-level interfacing with the I2C-hardware work without issues. The low level code is kept for clairty.
+ Parts of the low level code were taken from here: http://acoptex.com/uploads/modifiedOV7670code.ino
+
+ Be aware of bugs. Reset the Arduino if you have the feeling that something went wrong. Please comment your suggestions and findings on github.
+ 
